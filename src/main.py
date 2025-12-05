@@ -1,18 +1,19 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, hour, avg
 import os
+from dotenv import load_dotenv
+
+load_dotenv() 
 
 def main():
     spark = SparkSession.builder \
         .appName("SensorDataPOC") \
         .getOrCreate()
 
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    input_csv = os.path.join(BASE_DIR, "data", "data.csv")
-    output_csv = os.path.join(BASE_DIR, "data", "output.csv")
+    input_csv = os.environ.get("INPUT_PATH", "data/data.csv")
+    output_csv = os.environ.get("OUTPUT_PATH", "data/output.csv")
 
     df = spark.read.option("header", True).csv(input_csv)
-
 
     df = df.withColumn("temperature_c", col("temperature_c").cast("double")) \
            .withColumn("humidity_pct", col("humidity_pct").cast("double")) \
@@ -27,7 +28,7 @@ def main():
 
     agg_df.show()
     agg_df.coalesce(1).write.mode("overwrite").option("header", True).csv(output_csv)
-    
+
     print(f"Output written to {output_csv}")
     spark.stop()
 
