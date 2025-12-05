@@ -7,7 +7,9 @@ __pycache__/
 
 # Virtual environment
 venv/
-.env/
+
+# Environment variables - To keep credentials safe
+.env
 .env.*
 
 # Jupyter Notebook checkpoints
@@ -20,6 +22,6 @@ venv/
 .DS_Store
 Thumbs.db
 
-# PySpark / Spark temp files (optional)
+# PySpark / Spark temp files 
 *.log
 *.out
