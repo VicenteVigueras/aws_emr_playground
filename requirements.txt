@@ -2,3 +2,4 @@ pyspark
 aws-cdk-lib
 constructs>=10.0.0
 boto3
+python-dotenv
