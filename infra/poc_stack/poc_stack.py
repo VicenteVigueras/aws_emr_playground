@@ -1,7 +1,9 @@
 from aws_cdk import (
     Stack,
     RemovalPolicy,
+    Duration,
     aws_s3 as s3,
+    aws_s3_deployment as s3deploy,
     aws_iam as iam,
     aws_emrserverless as emr,
     aws_events as events,
@@ -17,6 +19,7 @@ class PocStack(Stack):
 
         input_bucket_name = f"pyspark-poc-input-{self.account}-{self.region}"
         output_bucket_name = f"pyspark-poc-output-{self.account}-{self.region}"
+        scripts_bucket_name = f"pyspark-poc-scripts-{self.account}-{self.region}"
 
         self.input_bucket = s3.Bucket(
             self, "InputBucket",
@@ -34,14 +37,33 @@ class PocStack(Stack):
             auto_delete_objects=True
         )
 
+        self.scripts_bucket = s3.Bucket(
+            self, "ScriptsBucket",
+            bucket_name=scripts_bucket_name,
+            versioned=False,
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True
+        )
+        s3deploy.BucketDeployment(
+            self, "DeployPySparkScript",
+            sources=[s3deploy.Source.asset(os.path.join(os.path.dirname(__file__), "..", "..", "src"))],
+            destination_bucket=self.scripts_bucket,
+            destination_key_prefix="scripts"
+        )
+
+        s3deploy.BucketDeployment(
+            self, "DeployInputData",
+            sources=[s3deploy.Source.asset(os.path.join(os.path.dirname(__file__), "..", "..", "data"))],
+            destination_bucket=self.input_bucket
+        )
         self.emr_role = iam.Role(
             self, "EMRServerlessRole",
             assumed_by=iam.ServicePrincipal("emr-serverless.amazonaws.com"),
             managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess")
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("CloudWatchLogsFullAccess")
             ]
         )
-
         self.emr_app = emr.CfnApplication(
             self, "PySparkApp",
             release_label="emr-6.13.0",
@@ -53,8 +75,8 @@ class PocStack(Stack):
                     value=emr.CfnApplication.InitialCapacityConfigProperty(
                         worker_count=1,
                         worker_configuration=emr.CfnApplication.WorkerConfigurationProperty(
-                            cpu="1vCPU",
-                            memory="2GB",
+                            cpu="2vCPU",
+                            memory="4GB",
                             disk="20GB"
                         )
                     )
@@ -66,7 +88,7 @@ class PocStack(Stack):
                         worker_configuration=emr.CfnApplication.WorkerConfigurationProperty(
                             cpu="2vCPU",
                             memory="4GB",
-                            disk="40GB"
+                            disk="20GB"
                         )
                     )
                 )
@@ -74,43 +96,48 @@ class PocStack(Stack):
             maximum_capacity=emr.CfnApplication.MaximumAllowedResourcesProperty(
                 cpu="4vCPU",
                 memory="8GB",
-                disk="80GB"
+                disk="40GB"
+            ),
+            auto_start_configuration=emr.CfnApplication.AutoStartConfigurationProperty(
+                enabled=True
+            ),
+            auto_stop_configuration=emr.CfnApplication.AutoStopConfigurationProperty(
+                enabled=True,
+                idle_timeout_minutes=15
             )
         )
-
-        lambda_asset_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "poc_stack", "lambda_submit")
-        )
+        lambda_asset_path = os.path.join(os.path.dirname(__file__), "..", "..", "poc_stack", "lambda_submit")
 
         submit_lambda = _lambda.Function(
             self, "SubmitJobLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="submit_job.handler",
             code=_lambda.Code.from_asset(lambda_asset_path),
+            timeout=Duration.seconds(60),
             environment={
                 "EMR_APP_ID": self.emr_app.ref,
                 "EMR_EXEC_ROLE": self.emr_role.role_arn,
+                "SCRIPT_PATH": f"s3://{self.scripts_bucket.bucket_name}/scripts/main.py",
                 "INPUT_PATH": f"s3://{self.input_bucket.bucket_name}/data.csv",
                 "OUTPUT_PATH": f"s3://{self.output_bucket.bucket_name}/output/"
             }
         )
-
         submit_lambda.add_to_role_policy(
             iam.PolicyStatement(
                 actions=[
                     "emr-serverless:StartJobRun",
                     "emr-serverless:GetApplication",
-                    "s3:*",
-                    "iam:PassRole"  
+                    "iam:PassRole"
                 ],
-                resources=[
-                    "*", 
-                ]
+                resources=["*"]
             )
         )
-
+        self.input_bucket.grant_read(submit_lambda)
+        self.output_bucket.grant_read_write(submit_lambda)
+        self.scripts_bucket.grant_read(submit_lambda)
         schedule_rule = events.Rule(
             self, "PySparkSchedule",
-            schedule=events.Schedule.cron(minute="0", hour="9,17")
+            schedule=events.Schedule.cron(minute="0", hour="9,17"),
+            enabled=False
         )
         schedule_rule.add_target(targets.LambdaFunction(submit_lambda))
