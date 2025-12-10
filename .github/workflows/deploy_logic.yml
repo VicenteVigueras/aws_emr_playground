@@ -1,0 +1,43 @@
+name: Deploy PySpark Logic
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy PySpark Scripts & Data to S3
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload PySpark script
+        run: |
+          SCRIPTS_BUCKET=pyspark-poc-scripts-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}
+          aws s3 cp src/main.py s3://$SCRIPTS_BUCKET/scripts/main.py
+          echo "Uploaded main.py to s3://$SCRIPTS_BUCKET/scripts/main.py"
+
+      - name: Upload input data
+        run: |
+          INPUT_BUCKET=pyspark-poc-input-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}
+          aws s3 cp data/data.csv s3://$INPUT_BUCKET/data.csv
+          echo "Uploaded data.csv to s3://$INPUT_BUCKET/data.csv"
+
+    # Keeping Lambda invocation disabled for manual triggering
+      - name: Trigger EMR job via Lambda
+        if: false
+        run: |
+          aws lambda invoke \
+            --function-name PySparkPOCStack-SubmitJobLambda \
+            --payload '{}' response.json
+          cat response.json
