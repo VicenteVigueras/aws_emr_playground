@@ -7,9 +7,7 @@ Pre-requisites:
 - Python 3.11.14
 - pip 25.3
 
-Once this is present, create virtual environment and activate (best practice for python)...
-
-Terminal commands:
+Create virtual environment and activate (best practice for python):
 - python3.11 -m venv venv  
 - source venv/bin/activate 
 
