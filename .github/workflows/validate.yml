@@ -1,0 +1,41 @@
+name: CI - PySpark Validation
+
+on:
+  push:
+    branches: ["*"]         
+  pull_request:
+    branches: ["*"]       
+  workflow_dispatch:           
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pyspark nbconvert
+
+      - name: Convert notebook to Python (temporary)
+        run: |
+          mkdir -p /tmp/nb
+          jupyter nbconvert \
+            --to python \
+            src/notebooks/jobs/sensor_processing.ipynb \
+            --output-dir /tmp/nb
+
+      - name: Syntax check converted notebook
+        run: |
+          python -m py_compile /tmp/nb/sensor_processing.py
+
+      - name: Cleanup temporary files
+        run: |
+          rm -rf /tmp/nb
