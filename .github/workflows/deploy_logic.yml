@@ -1,9 +1,7 @@
 name: Deploy PySpark Logic
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -25,15 +23,14 @@ jobs:
         run: |
           SCRIPTS_BUCKET=pyspark-poc-scripts-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}
           aws s3 cp src/main.py s3://$SCRIPTS_BUCKET/scripts/main.py
-          echo "Uploaded main.py to s3://$SCRIPTS_BUCKET/scripts/main.py"
+          echo "Uploaded main.py"
 
       - name: Upload input data
         run: |
           INPUT_BUCKET=pyspark-poc-input-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}
           aws s3 cp data/data.csv s3://$INPUT_BUCKET/data.csv
-          echo "Uploaded data.csv to s3://$INPUT_BUCKET/data.csv"
+          echo "Uploaded data.csv"
 
-    # Keeping Lambda invocation disabled for manual triggering
       - name: Trigger EMR job via Lambda
         if: false
         run: |

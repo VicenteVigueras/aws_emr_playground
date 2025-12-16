@@ -1,0 +1,26 @@
+name: CI - PySpark Validation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          pip install pyspark
+
+      - name: Syntax check
+        run: |
+          python -m py_compile src/notebooks/jobs/sensor_processing.py
