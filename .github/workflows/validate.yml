@@ -19,8 +19,20 @@ jobs:
 
       - name: Install deps
         run: |
-          pip install pyspark
+          pip install pyspark nbconvert
 
-      - name: Syntax check
+      - name: Convert notebook to python (temp)
         run: |
-          python -m py_compile src/notebooks/jobs/sensor_processing.py
+          mkdir -p /tmp/nb
+          jupyter nbconvert \
+            --to python \
+            src/notebooks/jobs/sensor_processing.ipynb \
+            --output-dir /tmp/nb
+
+      - name: Syntax check converted notebook
+        run: |
+          python -m py_compile /tmp/nb/sensor_processing.py
+
+      - name: Cleanup
+        run: |
+          rm -rf /tmp/nb
