@@ -35,8 +35,6 @@ spark = create_spark_session(environment)
 input_path, output_path = get_s3_paths()
 print(f"input: {input_path} and output: {output_path}")
     
-
-
 if not input_path:
     input_path = spark.conf.get("spark.app.input.path", "../../../data/raw/data.csv")
 if not output_path:
