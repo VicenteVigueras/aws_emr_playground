@@ -5,23 +5,26 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:  
 
 jobs:
   ci:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - name: Install deps
+      - name: Install dependencies
         run: |
           pip install pyspark nbconvert
 
-      - name: Convert notebook to python (temp)
+      - name: Convert notebook to Python (temporary)
         run: |
           mkdir -p /tmp/nb
           jupyter nbconvert \
@@ -33,6 +36,6 @@ jobs:
         run: |
           python -m py_compile /tmp/nb/sensor_processing.py
 
-      - name: Cleanup
+      - name: Cleanup temporary files
         run: |
           rm -rf /tmp/nb
