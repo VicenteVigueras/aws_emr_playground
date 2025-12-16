@@ -3,9 +3,6 @@ from pyspark.sql.functions import col, hour, avg, count, min as spark_min, max a
 import sys
 import os
 
-
-environment = "local"
-
 def get_s3_paths():
     if len(sys.argv) > 2:
         input_path = sys.argv[1]
@@ -29,7 +26,7 @@ def create_spark_session(environment):
                 .getOrCreate()
     return spark
 
-
+environment = "remote" if os.getenv("USE_AWS") == "1" else "local"
 spark = create_spark_session(environment)
 
 input_path, output_path = get_s3_paths()
