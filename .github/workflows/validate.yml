@@ -2,10 +2,10 @@ name: CI - PySpark Validation
 
 on:
   push:
-    branches: [ main ]
+    branches: ["*"]         
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:  
+    branches: ["*"]       
+  workflow_dispatch:           
 
 jobs:
   ci:
